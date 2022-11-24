@@ -37,7 +37,7 @@ coverage.profile: coverage.out
 	go tool cover -func=coverage.out -o coverage.profile
 
 # runs the unit tests andd capture the cover profile
-coverage.out:
+coverage.out: $(SOURCES)
 	go test ./... -coverprofile=coverage.out
 
 
