@@ -48,6 +48,8 @@ coverage.out:
 .PHONY: clean
 clean:
 	rm -rf bin
+	rm coverage.*
+
 
 # shows the list of Makefile targets
 .PHONY: help
