@@ -1,5 +1,5 @@
 ---
-name: '🚧 Package Build and Test'
+name: '🚧 Merge - Package Build and Test'
 on:
   push:
     branches:

@@ -1,5 +1,5 @@
 ---
-name: '🚧 Package Build and Test'
+name: '🚧 PR - Package Build and Test'
 on:
   pull_request:
     types:
