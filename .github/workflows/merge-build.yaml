@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - master
-  tags:
-    - v*.*.*
 env:
   GO_VERSION: 1.18.6
 
