@@ -96,6 +96,12 @@ func WithGuard(guard GuardFunction) ImpressionOption {
 	}
 }
 
+// ForeverGuard is a dummy implementation that never returns true and
+// keeps the receiving loop active forever.
+func ForeverGuard(context context.Context, message *pubsub.Message) bool {
+	return false
+}
+
 // NewImpression creates an instance of the impression message dispatcher and
 // configures it according to the given option functions. The implementation
 // also checks that a default handler and a default guard are added if they
@@ -123,9 +129,7 @@ func NewImpression(options ...ImpressionOption) (*Impression, error) {
 
 	// add the default guard on number of messages.
 	if impression.Guard == nil {
-		impression.Guard = func(context context.Context, message *pubsub.Message) bool {
-			return true
-		}
+		impression.Guard = ForeverGuard
 	}
 
 	if impression.Handler == nil {
