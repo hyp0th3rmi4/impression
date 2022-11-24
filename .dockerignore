@@ -1,0 +1,7 @@
+bin
+README.md
+.git
+.github
+.gitignore
+coverage.*
+
