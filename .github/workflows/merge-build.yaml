@@ -2,6 +2,8 @@
 name: '🚧 Package Build and Test'
 on:
   push:
+    branches:
+      - master
   tags:
     - v*.*.*
 env:
