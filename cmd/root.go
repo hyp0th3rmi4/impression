@@ -1,0 +1,94 @@
+package cmd
+
+import (
+	"context"
+
+	"cloud.google.com/go/pubsub"
+	"github.com/hyp0th3rmi4/impression/runtime"
+	"github.com/spf13/cobra"
+)
+
+// withMessageCount returns a guard function that returns true
+// when the counter, initially set to maxMessages, becomes 0.
+// If the value of maxMessages is 0 or negative this creates a
+// guard function that never terminates.
+func withMessageCount(maxMessages int) runtime.GuardFunction {
+	count := maxMessages
+	return func(ctx context.Context, message *pubsub.Message) bool {
+		count--
+		return count == 0
+	}
+}
+
+// initImpression creates an instance of Impression and configures it with the supplied parameters.
+// It assigns the project, topic, and context properties, and based on the value of outputPath it
+// supplies a essageHandler implementation that writes to the standard output (outputPath is empty)
+// or that will write messages as separate JSON files under the supplied path. The method also does
+// configure a guard function that terminates the receiving loop once a maximum number of messages
+// are retrieved or loops forever if the specified number of messages is zero or negative.
+func initImpression(project string, topic string, outputPath string, maxMessages int, ctx context.Context) (*runtime.Impression, error) {
+
+	var handler runtime.MessageHandler
+	if len(outputPath) > 0 {
+		handler = &runtime.FileHandler{
+			OutputPath: outputPath,
+		}
+	} else {
+		handler = &runtime.StdOutHandler{}
+	}
+
+	guard := withMessageCount(maxMessages)
+
+	// it is impossible here for the configuration
+	// to be nil, therefore we don't need to check
+	impression, err := runtime.NewImpression(
+		runtime.WithProject(project),
+		runtime.WithTopic(topic),
+		runtime.WithContext(ctx),
+		runtime.WithHandler(handler),
+		runtime.WithGuard(guard),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return impression, nil
+}
+
+// NewExecuteCommand generates a cobra command that based on the command line parameters
+// intialises an instance of Impression and then runns it. The method returns an error if
+// any initialisation or error during the execution occurs.
+func NewExecuteCommand() *cobra.Command {
+
+	var outputPath string
+	var maxMessages int
+	var topic string
+	var project string
+
+	cmd := &cobra.Command{
+		Use:        "impression",
+		Aliases:    []string{},
+		SuggestFor: []string{},
+		Short:      "Listens to a specified pubsub topic and dumps the messages published.",
+		Example:    "impression --project my-project --topic my-topic --max-messages 10 --output-path /dump",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			impression, err := initImpression(project, topic, outputPath, maxMessages, cmd.Context())
+			if err != nil {
+				return err
+			}
+
+			return impression.Run()
+		},
+	}
+
+	cmd.Flags().StringVarP(&project, "project", "p", "", "Project identifier of the project where the pubsub topic is hosted.")
+	cmd.Flags().StringVarP(&topic, "topic", "t", "", "Name of the topic to listen to.")
+	cmd.Flags().StringVarP(&outputPath, "output-path", "o", "", "Path to the output directory that will be used to store messages.")
+	cmd.Flags().IntVarP(&maxMessages, "max-messages", "m", -1, "Maximum number of messages to listen (if < 0 is unlimited).")
+
+	cmd.MarkFlagRequired("topic")
+	cmd.MarkFlagRequired("project")
+
+	return cmd
+}

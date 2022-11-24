@@ -1,8 +1,13 @@
-module github.com/Mat-Greaves/pubsubber
+module github.com/hyp0th3rmi4/impression
 
 go 1.18
 
 require cloud.google.com/go/pubsub v1.3.1
+
+require (
+	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
+)
 
 require (
 	cloud.google.com/go v0.101.1 // indirect
@@ -13,6 +18,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/googleapis/gax-go/v2 v2.3.0 // indirect
+	github.com/spf13/cobra v1.6.1
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/net v0.0.0-20220412020605-290c469a71a5 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
