@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"math/rand"
 	"testing"
 
 	"cloud.google.com/go/pubsub"
@@ -78,6 +79,19 @@ func TestWithGuard(t *testing.T) {
 
 	assert.False(t, candidate.Guard(nil, nil))
 	assert.True(t, state.Called)
+}
+
+func TestMessageLimitGuard(t *testing.T) {
+
+	count := rand.Intn(100) + 1
+	candidate := MessageLimitGuard(count)
+	for i := 0; i < count-1; i++ {
+
+		done := candidate(nil, nil)
+		assert.False(t, done)
+	}
+	done := candidate(nil, nil)
+	assert.True(t, done)
 }
 
 func TestNewImpression(t *testing.T) {
@@ -170,6 +184,7 @@ func TestNewImpression(t *testing.T) {
 				// is to check that the guard is assigned.
 				assert.NotNil(tt, actual.Guard)
 				assert.Equal(tt, testCase.Expected.Guard(nil, nil), actual.Guard(nil, nil))
+				assert.Nil(tt, actual.controlChannel)
 			}
 		})
 	}

@@ -3,22 +3,9 @@ package cmd
 import (
 	"context"
 
-	"cloud.google.com/go/pubsub"
 	"github.com/hyp0th3rmi4/impression/runtime"
 	"github.com/spf13/cobra"
 )
-
-// withMessageCount returns a guard function that returns true
-// when the counter, initially set to maxMessages, becomes 0.
-// If the value of maxMessages is 0 or negative this creates a
-// guard function that never terminates.
-func withMessageCount(maxMessages int) runtime.GuardFunction {
-	count := maxMessages
-	return func(ctx context.Context, message *pubsub.Message) bool {
-		count--
-		return count == 0
-	}
-}
 
 // initImpression creates an instance of Impression and configures it with the supplied parameters.
 // It assigns the project, topic, and context properties, and based on the value of outputPath it
@@ -26,7 +13,7 @@ func withMessageCount(maxMessages int) runtime.GuardFunction {
 // or that will write messages as separate JSON files under the supplied path. The method also does
 // configure a guard function that terminates the receiving loop once a maximum number of messages
 // are retrieved or loops forever if the specified number of messages is zero or negative.
-func initImpression(project string, topic string, outputPath string, maxMessages int, ctx context.Context) (*runtime.Impression, error) {
+func initImpression(ctx context.Context, project string, topic string, outputPath string, messageLimit int) (*runtime.Impression, error) {
 
 	var handler runtime.MessageHandler
 	if len(outputPath) > 0 {
@@ -37,7 +24,7 @@ func initImpression(project string, topic string, outputPath string, maxMessages
 		handler = &runtime.StdOutHandler{}
 	}
 
-	guard := withMessageCount(maxMessages)
+	guard := runtime.MessageLimitGuard(messageLimit)
 
 	// it is impossible here for the configuration
 	// to be nil, therefore we don't need to check
@@ -61,19 +48,17 @@ func initImpression(project string, topic string, outputPath string, maxMessages
 func NewExecuteCommand() *cobra.Command {
 
 	var outputPath string
-	var maxMessages int
+	var messageLimit int
 	var topic string
 	var project string
 
 	cmd := &cobra.Command{
-		Use:        "impression",
-		Aliases:    []string{},
-		SuggestFor: []string{},
-		Short:      "Listens to a specified pubsub topic and dumps the messages published.",
-		Example:    "impression --project my-project --topic my-topic --max-messages 10 --output-path /dump",
+		Use:     "impression",
+		Short:   "Listens to a specified pubsub topic and dumps the messages published.",
+		Example: "impression --project my-project --topic my-topic --message-limit 10 --output-path ./event-trace",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			impression, err := initImpression(project, topic, outputPath, maxMessages, cmd.Context())
+			impression, err := initImpression(cmd.Context(), project, topic, outputPath, messageLimit)
 			if err != nil {
 				return err
 			}
@@ -85,7 +70,7 @@ func NewExecuteCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&project, "project", "p", "", "Project identifier of the project where the pubsub topic is hosted.")
 	cmd.Flags().StringVarP(&topic, "topic", "t", "", "Name of the topic to listen to.")
 	cmd.Flags().StringVarP(&outputPath, "output-path", "o", "", "Path to the output directory that will be used to store messages.")
-	cmd.Flags().IntVarP(&maxMessages, "max-messages", "m", -1, "Maximum number of messages to listen (if < 0 is unlimited).")
+	cmd.Flags().IntVarP(&messageLimit, "message-limit", "m", -1, "Maximum number of messages to listen (if < 0 is unlimited).")
 
 	cmd.MarkFlagRequired("topic")
 	cmd.MarkFlagRequired("project")

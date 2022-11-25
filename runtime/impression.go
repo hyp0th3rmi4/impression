@@ -29,6 +29,8 @@ type Impression struct {
 	// Guard function that controls the termination
 	// of the receiving loop
 	Guard GuardFunction
+	// Control channel for managing graceful termination
+	controlChannel chan os.Signal
 }
 
 // MessageHandler defines the contract for all the handlers
@@ -102,6 +104,18 @@ func ForeverGuard(context context.Context, message *pubsub.Message) bool {
 	return false
 }
 
+// MessageLimitGuard returns a guard function that returns true
+// when the counter, initially set to maxMessages, becomes 0.
+// If the value of maxMessages is 0 or negative this creates a
+// guard function that never terminates.
+func MessageLimitGuard(maxMessages int) GuardFunction {
+	count := maxMessages
+	return func(ctx context.Context, message *pubsub.Message) bool {
+		count--
+		return count == 0
+	}
+}
+
 // NewImpression creates an instance of the impression message dispatcher and
 // configures it according to the given option functions. The implementation
 // also checks that a default handler and a default guard are added if they
@@ -163,10 +177,10 @@ func (impr *Impression) Run() error {
 	defer cancel()
 
 	// step 3 initialising the signal channel
-	interruptChannel := make(chan os.Signal, 1)
-	signal.Notify(interruptChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	impr.controlChannel = make(chan os.Signal, 1)
+	signal.Notify(impr.controlChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	interruptHandler := func() {
-		<-interruptChannel
+		<-impr.controlChannel
 		cancel()
 	}
 	go interruptHandler()
@@ -179,7 +193,13 @@ func (impr *Impression) Run() error {
 	defer sub.Delete(impr.Context)
 
 	// step 5 listen and dispatch messages
-	err = impr.dispatch(sub, cancel)
+	consumer, err := impr.defaultReceiver()
+	if err != nil {
+
+		return err
+	}
+
+	err = sub.Receive(impr.Context, consumer)
 
 	return err
 }
@@ -207,30 +227,30 @@ func (impr *Impression) subscribe() (*pubsub.Subscription, error) {
 	return sub, err
 }
 
-// dispatch executes a blocking call to subscription.Receive to process
-// the messages with the configured handler. The receiving loop is either
-// terminated when the configured guard function returns false of the
-// process receives an interrupt. If the configured handler returns an
-// error while configuring the handler function the method terminates
-// prematurely without entering the receive loop.
-func (impr *Impression) dispatch(subscription *pubsub.Subscription, cancel context.CancelFunc) error {
+// defaultReceiver generates the receive functon that is passed to the
+// Receive method of the subscription. The default implementation
+// passes the message to the handler invokes the acknowledgement of
+// the message and then invokes the guard to see whether we have met
+// the condition for termination, if so it sends a SIGINT through the
+// control channel, causing the Run method to terminate.  The method
+// returns an error if the configured handler returns an error when
+// invoked to produce a handler.
+func (impr *Impression) defaultReceiver() (ReceiveFunction, error) {
 
 	handler, err := impr.Handler.Handler()
 	if err != nil {
-		return err
+		return nil, err
 	}
+	return func(ctx context.Context, message *pubsub.Message) {
 
-	err = subscription.Receive(impr.Context, func(ctx context.Context, message *pubsub.Message) {
 		handler(impr.Context, message)
 		message.Ack()
 
 		done := impr.Guard(impr.Context, message)
 		if done {
-			cancel()
+			impr.controlChannel <- syscall.SIGINT
 		}
-	})
-
-	return err
+	}, nil
 }
 
 // randomHexString is a function that generates a random string of the given size
