@@ -1,4 +1,4 @@
-# PubSubber
+# Impression
 
 Impression latch onto a PubSub topic via a temporary subscription and copies messages either to console or file systems up until a termination condition is reached (CTRL+C or maximum number of messages).
 
