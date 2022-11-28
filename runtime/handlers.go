@@ -100,11 +100,11 @@ func (handler *StdOutHandler) Handler() (ReceiveFunction, error) {
 	return func(ctx context.Context, message *pubsub.Message) {
 
 		fmt.Println("----------------------------")
-		fmt.Printf("Id: %s", message.ID)
-		fmt.Printf("PublishTime: %s", message.PublishTime)
+		fmt.Printf("Id: %s\n", message.ID)
+		fmt.Printf("PublishTime: %s\n", message.PublishTime)
 		fmt.Println("Attributes:")
 		for k, v := range message.Attributes {
-			fmt.Printf("- %s: %s", k, v)
+			fmt.Printf("- %s: %s\n", k, v)
 		}
 		fmt.Println("Data:")
 		fmt.Println(message.Data)

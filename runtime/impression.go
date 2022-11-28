@@ -243,10 +243,10 @@ func (impr *Impression) defaultReceiver() (ReceiveFunction, error) {
 	}
 	return func(ctx context.Context, message *pubsub.Message) {
 
-		handler(impr.Context, message)
+		handler(ctx, message)
 		message.Ack()
 
-		done := impr.Guard(impr.Context, message)
+		done := impr.Guard(ctx, message)
 		if done {
 			impr.controlChannel <- syscall.SIGINT
 		}
